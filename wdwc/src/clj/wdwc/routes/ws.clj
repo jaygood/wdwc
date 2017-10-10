@@ -7,9 +7,23 @@
         [ring.util.response :refer [response status]]
         [wdwc.db.core :as db]
         [immutant.web.async :as async]
-        [cognitect.transit :as transit]))
+        [clojure.tools.logging :as log]
+        [cognitect.transit :as transit]
+        [taoensso.sente :as sente]
+        [taoensso.sente.server-adapters.immutant :refer [sente-web-server-adapter]]))
 
 (defonce channels (atom #{}))
+
+(let [connection (sente/make-channel-socket!
+                   sente-web-server-adapter
+                   {:user-id-fn (fn [ring-req] (get-in ring-req [:params :client-id]))})]
+     (def ring-ajax-post (:ajax-post-fn connection))
+     (def ring-ajax-get-or-ws-handshake (:ajax-get-or-ws-handshake-fn connection))
+     (def ch-chsk (:ch-recv connection))
+     (def chsk-send! (:send-fn connection))
+     (def connection-uids (:connected-uids connection)))
+
+
 
 (defn encode-transit [message]
       (let [out (java.io.ByteArrayOutputStream. 4096)
@@ -43,15 +57,25 @@
       (log/info "close code: " code " resason: " reason)
       (swap! channels clojure.set/difference #{channel}))
 
-(defn handle-message! [channel message]
-      (let [response (-> message
-                         decode-transit
-                         (assoc :timestamp (java.util.Date.))
-                         save-message!)]
-           (let [the-fun (fn [] (async/send! channel (encode-transit response)))]
-                (if (:errors response)
-                    (the-fun)
-                    (doseq [channel @channels] (the-fun))))))
+(defn handle-message! [{:keys [id client-id ?data]}]
+      (when (= id :wdwc/add-message)
+            (let [response (-> ?data
+                               (assoc :timestamp (java.util.Date.))
+                               save-the-message!)]
+                 (if (:errors response)
+                   (chsk-send! client-id [:wdwc/error response])
+                   (doseq [uid (:any @connected-uids)]
+                          (chsk-send! uid [:wdwc/add-message response]))))))
+
+(defn stop-router! [stop-fn]
+      (when stop-fn (stop-fn)))
+
+(defn start-router! []
+      (sente/start-chsk-router! ch-chsk handle-message!))
+
+(defstate start-router!
+          :start (start-router!)
+          :stop (stop-router! router))
 
 (defn ws-handler [request]
       (async/as-channel
@@ -61,4 +85,5 @@
            :on-message handle-message!}))
 
 (defroutes websocket-routes
-           (GET "/ws" [] ws-handler))
+           (GET "/ws" req (ring-ajax-get-or-ws-handshake req))
+           (POST "/ws" req (ring-ajax-post req)))

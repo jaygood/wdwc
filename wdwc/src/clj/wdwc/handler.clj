@@ -2,6 +2,7 @@
   (:require [compojure.core :refer [routes wrap-routes]]
             [wdwc.layout :refer [error-page]]
             [wdwc.routes.home :refer [home-routes]]
+            [wdwc.routes.ws :refer [websocket-routes]]
             [compojure.route :as route]
             [wdwc.env :refer [defaults]]
             [mount.core :as mount]
@@ -13,6 +14,7 @@
 
 (def app-routes
   (routes
+    #'websocket-routes
     (-> #'home-routes
         (wrap-routes middleware/wrap-csrf)
         (wrap-routes middleware/wrap-formats))
@@ -20,6 +22,5 @@
       (:body
         (error-page {:status 404
                      :title "page not found"})))))
-
 
 (defn app [] (middleware/wrap-base #'app-routes))

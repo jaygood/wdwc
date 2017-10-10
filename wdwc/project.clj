@@ -29,7 +29,8 @@
                  [luminus-immutant "0.2.0"]
                  [org.clojure/clojurescript "1.7.228" :scope "provided"]
                  [reagent "0.5.1"]
-                 [cljs-ajax "0.5.2"]]
+                 [cljs-ajax "0.5.2"]
+                 [com.taoensso/sente "1.8.0"]]
 
   :min-lein-version "2.0.0"
 
