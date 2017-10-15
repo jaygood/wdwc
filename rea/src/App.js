@@ -62,41 +62,28 @@ const removeChildren = p => {
 
 const createChild = (props, re) => Object.keys(props).length > 0 ? {name: re.type.name || re.type, props} : {name: re.type.name || re.type}
 
-const createIt = (parent, re, result) => {
+const createIt = (parent, re) => {
   if (typeof re === 'string') {
-      result.children = (result.children || []).concat(re);
-      const child = document.createElement('text')
-      child.textContent = re
-      parent.appendChild(child)
-      return
+      parent.appendChild(document.createTextNode(re));
+      return re;
   }
+  const p = removeChildren(re.props);
   if (typeof re.type === 'function') {
-    const props = removeChildren(re.props)
-    const next = createChild(props, re);
-    result.children = (result.children || []).concat(next);
-    createIt(parent, (new Shallow()).render(React.createElement(re.type, re.props)), result.children[result.children.length - 1]);
-    return
+    return Object.assign(createChild(p, re), {
+      children: createIt(parent, (new Shallow()).render(React.createElement(re.type, re.props)))
+    });
   }
+
   const child = document.createElement(re.type)
-  const p = removeChildren(re.props)
-  Object.keys(p).forEach(k => {
-    child[typeof p[k] === 'function' ? k.toLowerCase() : k] = p[k]
-  })
+  Object.keys(p).forEach(k => { child[typeof p[k] === 'function' ? k.toLowerCase() : k] = p[k]; });
 
-  result.children = (result.children || []).concat(createChild(p, re));
+  parent.appendChild(child);
 
-  const next = parent.appendChild(child)
-  if (re.props.children) {
-    if (Array.isArray(re.props.children)) {
-      re.props.children.forEach(c => {
-        createIt(next, c, result)
-      })
-    } else {
-      child.textContent = re.props.children
-    }
-  }
+  const children = Array.isArray(re.props.children) ? re.props.children : [re.props.children].filter(a => a);
+  return createChild(
+    children.length > 0 ? Object.assign({children: children.map(c => createIt(child, c))}, p) : p,
+    re);
 }
 
-const r = {name: 'App'}
-createIt(document.getElementById('root2'), (new Shallow()).render(<App/>), r)
-document.getElementById('root3').innerHTML = JSON.stringify(r, null, 2)
+const result = Object.assign(createIt(document.getElementById('root2'), (new Shallow()).render(<App/>)), {name: 'App'});
+document.getElementById('root3').innerHTML = JSON.stringify(result, null, 2);
