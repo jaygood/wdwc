@@ -10,7 +10,8 @@
         [clojure.tools.logging :as log]
         [cognitect.transit :as transit]
         [taoensso.sente :as sente]
-        [taoensso.sente.server-adapters.immutant :refer [sente-web-server-adapter]]))
+        [taoensso.sente.server-adapters.immutant :refer [sente-web-server-adapter]]
+        [mount.core :refer [defstate]]))
 
 (defonce channels (atom #{}))
 
@@ -21,7 +22,7 @@
      (def ring-ajax-get-or-ws-handshake (:ajax-get-or-ws-handshake-fn connection))
      (def ch-chsk (:ch-recv connection))
      (def chsk-send! (:send-fn connection))
-     (def connection-uids (:connected-uids connection)))
+     (def connected-uids (:connected-uids connection)))
 
 
 
@@ -73,7 +74,7 @@
 (defn start-router! []
       (sente/start-chsk-router! ch-chsk handle-message!))
 
-(defstate start-router!
+(defstate router
           :start (start-router!)
           :stop (stop-router! router))
 

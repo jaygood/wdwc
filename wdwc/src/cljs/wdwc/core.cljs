@@ -23,27 +23,23 @@
       [:div.content
        [:div.form-group
         [errors-component errors :name]
-        [:p "name " (:name @fields)]
-        [:p "message " (:message @fields)]
-        [:p "NAme: "
+        [:p "name "
          [:input.form-control
           {:type :text
-           :name :name
            :on-change #(swap! fields assoc :name (-> % .-target .-value))
            :value (:name @fields)}]]
         [errors-component errors :message]
-        [:p "Message: "
-         [:textarea.form-control
+        [:p "message "
+         [:text-area.form-control
           {:rows 4
            :cols 50
-           :name :message
            :value (:message @fields)
            :on-change #(swap! fields assoc :message (-> % .-target .-value))}]]
-        [:input.btn.btn-primary {:type :submit :value "comment" :on-click #(ws/send-message! @fields)}]]])
+        [:input.btn.btn-primary {:type :submit :value "comment" :on-click #(ws/send-message! [:wdwc/add-message]@fields) 8000}]]])
 
 
 (defn response-handler [messages fields errors]
-      (fn [message]
+      (fn [{[_ message] :?data}]
           (if-let [response-errors (:errors message)]
                   (reset! errors response-errors)
                   (do
@@ -56,15 +52,15 @@
       (let [messages (atom nil)
             errors (atom nil)
             fields (atom nil)]
-           (ws/connect! (str "ws://" (.-host js/location) "/ws")
-                        (response-handler messages fields errors))
+           (ws/start-router! (response-handler messages fields errors))
            (get-messages messages)
            (fn []
-               [:div.row
-                [:div.span12
-                 [message-list messages]]
-                [:div.span12
-                 [message-form fields errors]]])))
+               [:div
+                [:div.row
+                 [:div.span12
+                  [message-list messages]]
+                 [:div.span12
+                  [message-form fields errors]]]])))
 
 
 
